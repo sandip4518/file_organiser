@@ -1,0 +1,112 @@
+# Default Configuration for Smart File Organizer
+# Copy this file to config.yaml and customize as needed
+
+# File Categories and Extensions
+categories:
+  Images:
+    extensions: [jpg, jpeg, png, gif, bmp, svg, webp, tiff, ico]
+    folder_name: "Images"
+    rules: []
+    
+  Documents:
+    extensions: [pdf, docx, txt, pptx, xlsx, csv, md, rtf, odt, odp, ods]
+    folder_name: "Documents"
+    rules: []
+    
+  Audio:
+    extensions: [mp3, wav, flac, aac, ogg, m4a, wma]
+    folder_name: "Audio"
+    rules: []
+    
+  Video:
+    extensions: [mp4, mkv, mov, avi, webm, wmv, flv, m4v]
+    folder_name: "Video"
+    rules: []
+    
+  Archives:
+    extensions: [zip, rar, tar, gz, 7z, bz2, xz]
+    folder_name: "Archives"
+    rules: []
+    
+  Code:
+    extensions: [py, js, cpp, java, html, css, php, json, xml, yaml, sql, sh, bat, ps1]
+    folder_name: "Code"
+    rules: []
+    
+  Executables:
+    extensions: [exe, dmg, sh, bat, msi, app, deb, rpm]
+    folder_name: "Executables"
+    rules: []
+
+# Custom Rules Engine
+rules:
+  - name: "Large PDFs"
+    condition: "extension == 'pdf' and size > 10485760"  # 10MB
+    action: "move_to_folder"
+    target: "Large_PDFs"
+    
+  - name: "Screenshots"
+    condition: "filename_contains('screenshot') or filename_contains('screencap')"
+    action: "move_to_folder"
+    target: "Screenshots"
+    
+  - name: "Invoices"
+    condition: "filename_contains('invoice') or filename_contains('bill')"
+    action: "move_to_folder"
+    target: "Invoices"
+    
+  - name: "Old Files"
+    condition: "modified_days_ago > 365"
+    action: "move_to_folder"
+    target: "Old_Files"
+
+# Sorting Modes
+sorting_modes:
+  - type
+  - size
+  - date
+  - content
+
+# Size Categories
+size_categories:
+  Tiny: 1048576      # 1MB
+  Medium: 104857600  # 100MB
+  Large: 1073741824  # 1GB
+  Huge: 1073741824   # 1GB+
+
+# Date Categories
+date_categories:
+  Today: 1
+  This_Week: 7
+  This_Month: 30
+  This_Year: 365
+
+# Safety Settings
+safety:
+  backup_mode: false
+  backup_folder: "backup"
+  archive_old_files: false
+  archive_older_than_days: 365
+  encrypt_sensitive: false
+  sensitive_extensions: [env, pem, key, p12, pfx]
+  
+# Logging
+logging:
+  level: "INFO"
+  file: "organizer.log"
+  max_size_mb: 10
+  backup_count: 5
+
+# Profiles
+profiles:
+  default:
+    enabled_categories: ["Images", "Documents", "Audio", "Video", "Archives", "Code", "Executables"]
+    rules: ["Large PDFs", "Screenshots", "Invoices", "Old Files"]
+    
+  work:
+    enabled_categories: ["Documents", "Code", "Archives"]
+    rules: ["Large PDFs", "Invoices"]
+    
+  personal:
+    enabled_categories: ["Images", "Audio", "Video", "Documents"]
+    rules: ["Screenshots", "Old Files"]
