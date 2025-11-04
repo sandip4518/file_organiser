@@ -1,7 +1,4 @@
 rich>=13.0.0
 watchdog>=3.0.0
 PyYAML>=6.0
-pillow>=10.0.0
-colorama>=0.4.6
-tqdm>=4.65.0
-pyinstaller>=5.0.0
+pyinstaller>=5.13.0
