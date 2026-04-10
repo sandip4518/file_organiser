@@ -24,9 +24,9 @@
 
 ### 🖥️ Multiple Interfaces
 - **Rich CLI**: Colorful command-line interface with progress bars
-- **Modern GUI**: Tkinter-based graphical interface with drag-and-drop
+- **Modern Pro GUI**: CustomTkinter-based premium interface with dark mode and analytics
 - **File Monitor**: Background service for continuous organization
-- **Portable EXE**: Standalone executable (no Python installation required)
+- **Portable EXE**: Standalone high-performance executable
 
 ## 🚀 Quick Start
 
@@ -76,19 +76,19 @@ python main.py --cli --path "C:\Users\Username\Downloads" --config "my_config.ya
 python main.py --cli --undo
 ```
 
-### GUI Interface
+### GUI Interface (CustomTkinter Pro)
 
 ```bash
 # Launch graphical interface
 python main.py --gui
 ```
 
-The GUI provides:
-- Folder picker with drag-and-drop support
-- Real-time progress tracking
-- Live logs and status updates
-- Profile and mode selection
-- Dry run preview mode
+The new Pro GUI features:
+- **Tokyo Night Premium Theme**: State-of-the-art dark mode aesthetics
+- **Interactive Dashboard**: Real-time analytics (Total Files, Organized, Errors)
+- **Rounded Glassmorphism Design**: Modern, responsive UI with premium corners
+- **Live Activity Log**: Console-style feedback with high-speed updates
+- **Theme Switcher**: Instant toggle between Dark, Light, and System modes
 
 ### File Monitoring
 
@@ -200,25 +200,24 @@ scheduled_profile: "default"
 
 ## 🏗️ Building Standalone Executable
 
-### Using PyInstaller
+### Using PyInstaller (Premium Build)
 
-1. **Install PyInstaller**
+1. **Install PyInstaller & CustomTkinter**
    ```bash
-   pip install pyinstaller
+   pip install pyinstaller customtkinter
    ```
 
-2. **Build the executable**
+2. **Build the PRO executable**
    ```bash
-   # Using the spec file
-   pyinstaller build_exe.spec
-   
-   # Or direct command
-   pyinstaller --onefile --windowed --add-data "config;config" --add-data "core;core" --add-data "cli;cli" --add-data "gui;gui" main.py
+   # Use the following pattern to include CTk assets
+   python -m PyInstaller --noconsole --onefile \
+   --add-data "path_to_customtkinter;customtkinter/" \
+   --paths "." \
+   --name "SmartFileOrganizer" gui/main_window.py
    ```
 
 3. **Find the executable**
-   - Console version: `dist/SmartFileOrganizer.exe`
-   - GUI version: `dist/SmartFileOrganizer_GUI.exe`
+   - Main Version: `dist/SmartFileOrganizer.exe`
 
 ### Distribution
 

@@ -1,472 +1,328 @@
 #!/usr/bin/env python3
 """
 Smart File Organizer GUI Interface
-Provides a modern graphical interface using Tkinter
+Provides a modern, premium graphical interface using CustomTkinter
 """
 
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, scrolledtext
+from tkinter import filedialog, messagebox
+import customtkinter as ctk
 import threading
 import queue
 from pathlib import Path
 import sys
 import os
+from PIL import Image
 
 # Add parent directory to path to import core modules
 sys.path.append(str(Path(__file__).parent.parent))
 
 from core.file_organizer import FileOrganizer
 
-class SmartFileOrganizerGUI:
-    """Main GUI window for the Smart File Organizer"""
+# Configuration & Appearance
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("blue")
+
+COLORS = {
+    "bg_main": "#0f111a",
+    "bg_sidebar": "#16161e",
+    "bg_card": "#1a1b26",
+    "accent": "#7aa2f7",
+    "success": "#9ece6a",
+    "error": "#f7768e",
+    "text_main": "#a9b1d6",
+    "text_bright": "#cfc9c2",
+    "border": "#292e42"
+}
+
+import typing
+
+# ... (omitted imports)
+
+class SmartFileOrganizerGUI(ctk.CTk):
+    """Main GUI window using CustomTkinter for a Premium Experience"""
     
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Smart File Organizer - Advanced Productivity Tool")
-        self.root.geometry("900x700")
-        self.root.minsize(800, 600)
+    def __init__(self):
+        super().__init__()
         
-        # Initialize organizer
+        # Window Configuration
+        self.title("Smart File Organizer Pro")
+        self.geometry("1100x750")
+        self.minsize(1000, 680)
+        
+        # Grid Configuration
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        
+        # Initialize Core
         self.organizer = FileOrganizer()
-        self.selected_folder = None
-        self.message_queue = queue.Queue()
+        self.selected_folder: str = ""
+        self.message_queue: queue.Queue = queue.Queue()
         
-        # Setup UI
-        self.setup_ui()
-        self.setup_styles()
-        self.setup_bindings()
+        # State
+        self.total_files: int = 0
+        self.organized_files: int = 0
+        self.error_count: int = 0
+        
+        # UI Elements Storage
+        self.setup_sidebar()
+        self.setup_workspace()
         
         # Start message processing
         self.process_messages()
-    
-    def setup_styles(self):
-        """Setup custom styles for the GUI"""
-        style = ttk.Style()
         
-        # Configure styles
-        style.configure('Title.TLabel', font=('Arial', 16, 'bold'))
-        style.configure('Header.TLabel', font=('Arial', 12, 'bold'))
-        style.configure('Success.TLabel', foreground='green')
-        style.configure('Error.TLabel', foreground='red')
-        style.configure('Warning.TLabel', foreground='orange')
+    def setup_sidebar(self):
+        """Setup the Sidebar with Branding and Stats"""
+        self.sidebar_frame = ctk.CTkFrame(self, width=280, corner_radius=0, fg_color=COLORS["bg_sidebar"])
+        self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
+        self.sidebar_frame.grid_rowconfigure(4, weight=1)
         
-        # Configure button styles
-        style.configure('Action.TButton', font=('Arial', 10, 'bold'))
-        style.configure('Primary.TButton', font=('Arial', 10, 'bold'))
-    
-    def setup_ui(self):
-        """Setup the main user interface"""
-        # Main container
-        main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Branding
+        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="FileOrganiser", 
+                                      font=ctk.CTkFont(size=24, weight="bold"), text_color=COLORS["text_bright"])
+        self.logo_label.grid(row=0, column=0, padx=30, pady=(40, 5), sticky="w")
         
-        # Configure grid weights
-        self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(3, weight=1)
+        self.sub_label = ctk.CTkLabel(self.sidebar_frame, text="AI Driven Productivity", 
+                                     font=ctk.CTkFont(size=12), text_color=COLORS["text_main"])
+        self.sub_label.grid(row=1, column=0, padx=30, pady=(0, 30), sticky="w")
         
-        # Title
-        title_label = ttk.Label(
-            main_frame, 
-            text="Smart File Organizer", 
-            style='Title.TLabel'
-        )
-        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
+        # Stats Section
+        self.stats_title = ctk.CTkLabel(self.sidebar_frame, text="DASHBOARD", 
+                                       font=ctk.CTkFont(size=11, weight="bold"), text_color=COLORS["accent"])
+        self.stats_title.grid(row=2, column=0, padx=30, pady=(10, 15), sticky="w")
         
-        # Folder selection section
-        self.setup_folder_selection(main_frame)
+        # Stats Cards Container
+        self.stats_container = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
+        self.stats_container.grid(row=3, column=0, padx=20, sticky="ew")
+        self.stats_container.grid_columnconfigure((0, 1), weight=1)
         
-        # Options section
-        self.setup_options_section(main_frame)
+        self.stat_widgets = {}
+        stats_info = [
+            ("Total Files", "0", "📄", 0, 0),
+            ("Organized", "0", "✅", 0, 1),
+            ("Errors", "0", "❌", 1, 0),
+            ("Sessions", "0", "🚀", 1, 1)
+        ]
         
-        # Action buttons
-        self.setup_action_buttons(main_frame)
+        for name, val, icon, r, c in stats_info:
+            card = ctk.CTkFrame(self.stats_container, corner_radius=10, fg_color=COLORS["bg_card"], 
+                               border_width=1, border_color=COLORS["border"])
+            card.grid(row=r, column=c, padx=5, pady=5, sticky="nsew")
+            
+            ctk.CTkLabel(card, text=f"{icon} {name}", font=ctk.CTkFont(size=10), text_color=COLORS["text_main"]).pack(pady=(10, 0), padx=10, anchor="w")
+            val_label = ctk.CTkLabel(card, text=val, font=ctk.CTkFont(size=18, weight="bold"), text_color=COLORS["text_bright"])
+            val_label.pack(pady=(2, 10), padx=10, anchor="w")
+            self.stat_widgets[name] = val_label
+
+        # Bottom Buttons
+        self.appearance_mode_label = ctk.CTkLabel(self.sidebar_frame, text="Theme:", anchor="w")
+        self.appearance_mode_label.grid(row=5, column=0, padx=30, pady=(10, 0))
+        self.appearance_mode_optionemenu = ctk.CTkOptionMenu(self.sidebar_frame, values=["Dark", "Light", "System"],
+                                                               command=self.change_appearance_mode)
+        self.appearance_mode_optionemenu.grid(row=6, column=0, padx=20, pady=(10, 20))
+
+    def setup_workspace(self):
+        """Setup the Main Interaction Core"""
+        self.main_container = ctk.CTkFrame(self, corner_radius=0, fg_color=COLORS["bg_main"])
+        self.main_container.grid(row=0, column=1, sticky="nsew", padx=40, pady=40)
+        self.main_container.grid_columnconfigure(0, weight=1)
+        self.main_container.grid_rowconfigure(4, weight=1)
         
-        # Progress and log section
-        self.setup_progress_section(main_frame)
+        # Top Bar (Path Selection)
+        self.path_bar = ctk.CTkFrame(self.main_container, corner_radius=12, fg_color=COLORS["bg_card"], 
+                                    border_width=1, border_color=COLORS["border"])
+        self.path_bar.grid(row=0, column=0, sticky="ew", pady=(0, 30))
+        self.path_bar.grid_columnconfigure(0, weight=1)
         
-        # Status bar
-        self.setup_status_bar(main_frame)
-    
-    def setup_folder_selection(self, parent):
-        """Setup folder selection controls"""
-        # Folder selection frame
-        folder_frame = ttk.LabelFrame(parent, text="Folder Selection", padding="10")
-        folder_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
-        folder_frame.columnconfigure(1, weight=1)
+        self.path_label = ctk.CTkLabel(self.path_bar, text="Select a directory to begin...", 
+                                      font=ctk.CTkFont(size=13), text_color=COLORS["text_main"], anchor="w")
+        self.path_label.grid(row=0, column=0, padx=20, pady=12, sticky="ew")
         
-        # Folder path label
-        ttk.Label(folder_frame, text="Target Folder:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        self.browse_btn = ctk.CTkButton(self.path_bar, text="+ Select Folder", font=ctk.CTkFont(weight="bold"), 
+                                       width=140, height=35, fg_color=COLORS["accent"], hover_color="#5a8bed", 
+                                       command=self.browse_folder)
+        self.browse_btn.grid(row=0, column=1, padx=10, pady=8)
         
-        # Folder path entry
-        self.folder_var = tk.StringVar()
-        self.folder_entry = ttk.Entry(folder_frame, textvariable=self.folder_var, width=50)
-        self.folder_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 10))
+        # Hero Action Card (Visual Drop Zone)
+        self.hero_card = ctk.CTkFrame(self.main_container, corner_radius=15, fg_color=COLORS["bg_card"],
+                                     border_width=1, border_color=COLORS["border"])
+        self.hero_card.grid(row=1, column=0, sticky="ew", pady=(0, 30), ipady=20)
         
-        # Browse button
-        browse_btn = ttk.Button(
-            folder_frame, 
-            text="Browse...", 
-            command=self.browse_folder,
-            style='Action.TButton'
-        )
-        browse_btn.grid(row=0, column=2)
+        self.hero_title = ctk.CTkLabel(self.hero_card, text="Ready to Organize?", 
+                                       font=ctk.CTkFont(size=22, weight="bold"), text_color=COLORS["text_bright"])
+        self.hero_title.pack(pady=(30, 5))
         
-        # Drag and drop hint
-        self.drop_hint = ttk.Label(
-            folder_frame, 
-            text="💡 Tip: You can also drag and drop a folder here",
-            style='Warning.TLabel'
-        )
-        self.drop_hint.grid(row=1, column=0, columnspan=3, pady=(5, 0))
+        self.hero_sub = ctk.CTkLabel(self.hero_card, text="Clean up your workspace with smart AI rules in seconds", 
+                                     font=ctk.CTkFont(size=13), text_color=COLORS["text_main"])
+        self.hero_sub.pack(pady=(0, 25))
         
-        # Check if drag and drop is supported
-        try:
-            self.root.drop_target_register('DND_Files')
-            self.root.dnd_bind('<<Drop>>', self.handle_drop)
-            self.drag_drop_supported = True
-        except AttributeError:
-            # Drag and drop not supported, hide the hint
-            self.drop_hint.grid_remove()
-            self.drag_drop_supported = False
-    
-    def setup_options_section(self, parent):
-        """Setup organization options"""
-        # Options frame
-        options_frame = ttk.LabelFrame(parent, text="Organization Options", padding="10")
-        options_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.launch_btn = ctk.CTkButton(self.hero_card, text="START ORGANIZATION", font=ctk.CTkFont(size=14, weight="bold"),
+                                        height=45, width=220, fg_color=COLORS["success"], hover_color="#7ab34f",
+                                        text_color="#000", command=self.start_organization)
+        self.launch_btn.pack(pady=(0, 30))
         
-        # Mode selection
-        ttk.Label(options_frame, text="Sorting Mode:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
-        self.mode_var = tk.StringVar(value="type")
-        mode_combo = ttk.Combobox(
-            options_frame, 
-            textvariable=self.mode_var,
-            values=["type", "size", "date", "content"],
-            state="readonly",
-            width=15
-        )
-        mode_combo.grid(row=0, column=1, sticky=tk.W, padx=(0, 20))
+        # Options Toolbar
+        self.toolbar = ctk.CTkFrame(self.main_container, fg_color="transparent")
+        self.toolbar.grid(row=2, column=0, sticky="ew", pady=(0, 30))
         
-        # Profile selection
-        ttk.Label(options_frame, text="Profile:").grid(row=0, column=2, sticky=tk.W, padx=(0, 10))
-        self.profile_var = tk.StringVar(value="default")
-        profile_combo = ttk.Combobox(
-            options_frame, 
-            textvariable=self.profile_var,
-            values=["default", "work", "personal"],
-            state="readonly",
-            width=15
-        )
-        profile_combo.grid(row=0, column=3, sticky=tk.W)
+        # Options
+        self.mode_label = ctk.CTkLabel(self.toolbar, text="SORTING MODE", font=ctk.CTkFont(size=10, weight="bold"), text_color=COLORS["accent"])
+        self.mode_label.grid(row=0, column=0, padx=5, sticky="w")
+        self.mode_menu = ctk.CTkOptionMenu(self.toolbar, values=["type", "size", "date", "content"], width=130)
+        self.mode_menu.grid(row=1, column=0, padx=5, pady=(5, 0))
         
-        # Options row 2
-        # Dry run checkbox
-        self.dry_run_var = tk.BooleanVar(value=True)
-        dry_run_check = ttk.Checkbutton(
-            options_frame,
-            text="Dry Run (Preview only)",
-            variable=self.dry_run_var
-        )
-        dry_run_check.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(10, 0))
+        self.profile_label = ctk.CTkLabel(self.toolbar, text="PROFILE", font=ctk.CTkFont(size=10, weight="bold"), text_color=COLORS["accent"])
+        self.profile_label.grid(row=0, column=1, padx=20, sticky="w")
+        self.profile_menu = ctk.CTkOptionMenu(self.toolbar, values=["default", "work", "personal"], width=130)
+        self.profile_menu.grid(row=1, column=1, padx=20, pady=(5, 0))
         
-        # Backup checkbox
-        self.backup_var = tk.BooleanVar(value=False)
-        backup_check = ttk.Checkbutton(
-            options_frame,
-            text="Create backup before organizing",
-            variable=self.backup_var
-        )
-        backup_check.grid(row=1, column=2, columnspan=2, sticky=tk.W, pady=(10, 0))
-    
-    def setup_action_buttons(self, parent):
-        """Setup action buttons"""
-        # Button frame
-        button_frame = ttk.Frame(parent)
-        button_frame.grid(row=3, column=0, columnspan=3, pady=(0, 10))
+        self.dry_run_switch = ctk.CTkSwitch(self.toolbar, text="Dry Run Mode", font=ctk.CTkFont(size=12))
+        self.dry_run_switch.grid(row=1, column=2, padx=20)
+        self.dry_run_switch.select()
         
-        # Organize button
-        self.organize_btn = ttk.Button(
-            button_frame,
-            text="🚀 Organize Files",
-            command=self.start_organization,
-            style='Primary.TButton'
-        )
-        self.organize_btn.pack(side=tk.LEFT, padx=(0, 10))
+        self.undo_btn = ctk.CTkButton(self.toolbar, text="↩ Undo Last", width=120, height=32, 
+                                     fg_color=COLORS["error"], hover_color="#d65f6e", command=self.undo_last_operation)
+        self.undo_btn.grid(row=1, column=3, padx=(20, 0))
         
-        # Stop button
-        self.stop_btn = ttk.Button(
-            button_frame,
-            text="⏹️ Stop",
-            command=self.stop_organization,
-            state=tk.DISABLED
-        )
-        self.stop_btn.pack(side=tk.LEFT, padx=(0, 10))
+        # Log Console
+        self.console_frame = ctk.CTkFrame(self.main_container, corner_radius=12, fg_color=COLORS["bg_card"],
+                                         border_width=1, border_color=COLORS["border"])
+        self.console_frame.grid(row=4, column=0, sticky="nsew")
+        self.console_frame.grid_columnconfigure(0, weight=1)
+        self.console_frame.grid_rowconfigure(1, weight=1)
         
-        # Undo button
-        undo_btn = ttk.Button(
-            button_frame,
-            text="↩️ Undo Last",
-            command=self.undo_last_operation
-        )
-        undo_btn.pack(side=tk.LEFT, padx=(0, 10))
+        self.console_title = ctk.CTkLabel(self.console_frame, text="ACTIVITY LOG", 
+                                         font=ctk.CTkFont(size=10, weight="bold"), text_color=COLORS["text_main"])
+        self.console_title.grid(row=0, column=0, padx=20, pady=(15, 5), sticky="w")
         
-        # Clear log button
-        clear_btn = ttk.Button(
-            button_frame,
-            text="🗑️ Clear Log",
-            command=self.clear_log
-        )
-        clear_btn.pack(side=tk.LEFT)
-    
-    def setup_progress_section(self, parent):
-        """Setup progress tracking and log display"""
-        # Progress frame
-        progress_frame = ttk.LabelFrame(parent, text="Progress & Logs", padding="10")
-        progress_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
-        progress_frame.columnconfigure(0, weight=1)
-        progress_frame.rowconfigure(1, weight=1)
+        self.clear_log_btn = ctk.CTkButton(self.console_frame, text="Clear", width=60, height=22, 
+                                          font=ctk.CTkFont(size=10), fg_color=COLORS["border"], hover_color="#3b4261",
+                                          command=self.clear_log)
+        self.clear_log_btn.grid(row=0, column=0, padx=15, pady=(15, 5), sticky="e")
         
-        # Progress bar
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(
-            progress_frame,
-            variable=self.progress_var,
-            maximum=100
-        )
-        self.progress_bar.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.textbox = ctk.CTkTextbox(self.console_frame, font=("Consolas", 12), border_width=0, 
+                                     fg_color="transparent", text_color=COLORS["text_main"])
+        self.textbox.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
         
-        # Progress label
-        self.progress_label = ttk.Label(progress_frame, text="Ready to organize files")
-        self.progress_label.grid(row=1, column=0, sticky=tk.W, pady=(0, 10))
-        
-        # Log text area
-        log_frame = ttk.Frame(progress_frame)
-        log_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        log_frame.columnconfigure(0, weight=1)
-        log_frame.rowconfigure(0, weight=1)
-        
-        # Log text widget
-        self.log_text = scrolledtext.ScrolledText(
-            log_frame,
-            height=15,
-            width=80,
-            wrap=tk.WORD,
-            state=tk.DISABLED
-        )
-        self.log_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        
-        # Log scrollbar
-        log_scrollbar = ttk.Scrollbar(log_frame, orient=tk.VERTICAL, command=self.log_text.yview)
-        log_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        self.log_text.configure(yscrollcommand=log_scrollbar.set)
-    
-    def setup_status_bar(self, parent):
-        """Setup status bar"""
-        # Status frame
-        status_frame = ttk.Frame(parent)
-        status_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E))
-        status_frame.columnconfigure(0, weight=1)
-        
-        # Status label
-        self.status_var = tk.StringVar(value="Ready")
-        status_label = ttk.Label(status_frame, textvariable=self.status_var)
-        status_label.grid(row=0, column=0, sticky=tk.W)
-        
-        # File count label
-        self.file_count_var = tk.StringVar(value="Files: 0")
-        file_count_label = ttk.Label(status_frame, textvariable=self.file_count_var)
-        file_count_label.grid(row=0, column=1, padx=(20, 0))
-    
-    def setup_bindings(self):
-        """Setup event bindings"""
-        # Enter key in folder entry
-        self.folder_entry.bind('<Return>', lambda e: self.start_organization())
-    
+        # Progress Bar
+        self.progress_bar = ctk.CTkProgressBar(self.main_container, height=6, fg_color=COLORS["bg_card"], progress_color=COLORS["accent"])
+        self.progress_bar.grid(row=5, column=0, sticky="ew", pady=(20, 0))
+        self.progress_bar.set(0)
+
+    def change_appearance_mode(self, new_mode: str):
+        ctk.set_appearance_mode(new_mode)
+
     def browse_folder(self):
-        """Open folder browser dialog"""
         folder = filedialog.askdirectory(title="Select folder to organize")
         if folder:
-            self.folder_var.set(folder)
             self.selected_folder = folder
-            self.update_file_count()
-    
-    def handle_drop(self, event):
-        """Handle drag and drop of folders"""
-        files = event.data
-        if files:
-            # Get the first file/folder path
-            path = files[0]
-            if os.path.isdir(path):
-                self.folder_var.set(path)
-                self.selected_folder = path
-                self.update_file_count()
-                self.log_message(f"📁 Dropped folder: {path}")
-            else:
-                # If it's a file, get its parent directory
-                parent_dir = str(Path(path).parent)
-                self.folder_var.set(parent_dir)
-                self.selected_folder = parent_dir
-                self.update_file_count()
-                self.log_message(f"📁 Using parent directory: {parent_dir}")
-    
-    def update_file_count(self):
-        """Update the file count display"""
+            self.path_label.configure(text=folder)
+            self.log_message(f"📁 Root directory set: {folder}")
+            self.update_stats()
+
+    def update_stats(self):
         if self.selected_folder:
             try:
                 folder_path = Path(self.selected_folder)
-                file_count = len([f for f in folder_path.iterdir() if f.is_file])
-                self.file_count_var.set(f"Files: {file_count}")
-            except Exception as e:
-                self.file_count_var.set("Files: Error")
-    
+                files = [f for f in folder_path.iterdir() if f.is_file()]
+                self.total_files = len(files)
+                self.stat_widgets["Total Files"].configure(text=str(self.total_files))
+            except Exception:
+                self.stat_widgets["Total Files"].configure(text="Err")
+
+    def log_message(self, message):
+        self.textbox.insert("end", f"{message}\n")
+        self.textbox.see("end")
+
+    def clear_log(self):
+        self.textbox.delete("1.0", "end")
+
     def start_organization(self):
-        """Start the file organization process"""
         if not self.selected_folder:
-            messagebox.showerror("Error", "Please select a folder to organize!")
+            messagebox.showwarning("No Folder", "Please select a folder first!")
             return
         
-        if not os.path.exists(self.selected_folder):
-            messagebox.showerror("Error", "Selected folder does not exist!")
-            return
-        
-        # Disable organize button and enable stop button
-        self.organize_btn.config(state=tk.DISABLED)
-        self.stop_btn.config(state=tk.NORMAL)
-        
-        # Clear log
+        self.launch_btn.configure(state="disabled", text="ORGANIZING...")
         self.clear_log()
+        self.log_message("🚀 Analyzing filesystem architecture...")
         
-        # Log start
-        self.log_message("🚀 Starting file organization...")
-        self.log_message(f"📁 Target: {self.selected_folder}")
-        self.log_message(f"🔧 Mode: {self.mode_var.get()}")
-        self.log_message(f"👤 Profile: {self.profile_var.get()}")
-        self.log_message(f"🔍 Dry Run: {'Yes' if self.dry_run_var.get() else 'No'}")
-        self.log_message("-" * 50)
-        
-        # Start organization in separate thread
-        self.organization_thread = threading.Thread(
-            target=self.run_organization,
-            daemon=True
-        )
-        self.organization_thread.start()
-    
+        # Start organization in thread
+        threading.Thread(target=self.run_organization, daemon=True).start()
+
     def run_organization(self):
-        """Run the organization process in background thread"""
         try:
-            # Update progress
-            self.message_queue.put(("progress", 10, "Scanning files..."))
+            self.message_queue.put(("progress", 0.2))
             
-            # Run organizer
             results = self.organizer.organize_folder(
                 folder_path=self.selected_folder,
-                mode=self.mode_var.get(),
-                profile=self.profile_var.get(),
-                dry_run=self.dry_run_var.get()
+                mode=self.mode_menu.get(),
+                profile=self.profile_menu.get(),
+                dry_run=self.dry_run_switch.get()
             )
             
-            # Update progress
-            self.message_queue.put(("progress", 100, "Organization completed!"))
+            moved = results.get("moved", [])
+            errors = results.get("errors", [])
             
-            # Log results
-            if results.get("moved"):
-                self.message_queue.put(("log", f"✅ Successfully organized {len(results['moved'])} files"))
-                for item in results["moved"]:
-                    self.message_queue.put(("log", f"  📄 {item['file']} → {item['category']}"))
+            self.message_queue.put(("log", f"✅ Successfully processed {len(moved)} files"))
+            for item in moved:
+                self.message_queue.put(("log", f"  • {item['file']} → {item['category']}"))
             
-            if results.get("errors"):
-                self.message_queue.put(("log", f"⚠️  {len(results['errors'])} errors occurred"))
-                for error in results["errors"]:
-                    self.message_queue.put(("log", f"  ❌ {error}"))
+            if errors:
+                self.message_queue.put(("log", f"❌ {len(errors)} errors during operation"))
             
-            # Final status
-            if results.get("errors"):
-                self.message_queue.put(("status", "Completed with errors"))
-            else:
-                self.message_queue.put(("status", "Completed successfully"))
-                
+            self.message_queue.put(("stats_update", len(moved), len(errors)))
+            self.message_queue.put(("progress", 1.0))
+            
         except Exception as e:
-            self.message_queue.put(("log", f"❌ Error: {str(e)}"))
-            self.message_queue.put(("status", "Failed"))
+            self.message_queue.put(("log", f"CRITICAL ERROR: {str(e)}"))
         finally:
-            # Re-enable organize button and disable stop button
-            self.message_queue.put(("buttons", "enable_organize"))
-    
-    def stop_organization(self):
-        """Stop the current organization process"""
-        # This is a placeholder - in a real implementation, you'd need to
-        # implement a way to gracefully stop the organizer
-        self.log_message("⏹️ Stop requested (not implemented in this version)")
-        self.stop_btn.config(state=tk.DISABLED)
-    
+            self.message_queue.put(("ui_reset", None))
+
     def undo_last_operation(self):
-        """Undo the last organization operation"""
         try:
             if self.organizer.undo_last_operation():
-                self.log_message("↩️ Undo operation completed successfully")
+                self.log_message("↩ Operation successfully reverted.")
                 messagebox.showinfo("Success", "Undo operation completed!")
+                self.update_stats()
             else:
-                self.log_message("❌ No operations to undo")
-                messagebox.showwarning("Warning", "No operations to undo!")
+                self.log_message("ℹ Nothing to undo.")
         except Exception as e:
-            self.log_message(f"❌ Undo failed: {str(e)}")
-            messagebox.showerror("Error", f"Undo operation failed: {str(e)}")
-    
-    def clear_log(self):
-        """Clear the log display"""
-        self.log_text.config(state=tk.NORMAL)
-        self.log_text.delete(1.0, tk.END)
-        self.log_text.config(state=tk.DISABLED)
-    
-    def log_message(self, message):
-        """Add a message to the log display"""
-        self.log_text.config(state=tk.NORMAL)
-        self.log_text.insert(tk.END, f"{message}\n")
-        self.log_text.see(tk.END)
-        self.log_text.config(state=tk.DISABLED)
-    
+            self.log_message(f"❌ Reversion failed: {str(e)}")
+
     def process_messages(self):
-        """Process messages from the background thread"""
+        """Process messages from the background thread with type safety"""
         try:
-            while True:
+            while not self.message_queue.empty():
                 try:
-                    msg_type, *args = self.message_queue.get_nowait()
+                    msg = self.message_queue.get_nowait()
+                    if not isinstance(msg, (list, tuple)) or len(msg) < 2:
+                        continue
+                        
+                    msg_type = msg[0]
                     
                     if msg_type == "progress":
-                        progress, description = args
-                        self.progress_var.set(progress)
-                        self.progress_label.config(text=description)
-                    
+                        self.progress_bar.set(float(msg[1]))
                     elif msg_type == "log":
-                        message = args[0]
-                        self.log_message(message)
-                    
-                    elif msg_type == "status":
-                        status = args[0]
-                        self.status_var.set(status)
-                    
-                    elif msg_type == "buttons":
-                        action = args[0]
-                        if action == "enable_organize":
-                            self.organize_btn.config(state=tk.NORMAL)
-                            self.stop_btn.config(state=tk.DISABLED)
-                    
-                except queue.Empty:
+                        self.log_message(str(msg[1]))
+                    elif msg_type == "stats_update":
+                        if len(msg) >= 3:
+                            moved = int(msg[1])
+                            errors = int(msg[2])
+                            self.organized_files += moved
+                            self.error_count += errors
+                            if "Organized" in self.stat_widgets:
+                                self.stat_widgets["Organized"].configure(text=str(self.organized_files))
+                            if "Errors" in self.stat_widgets:
+                                self.stat_widgets["Errors"].configure(text=str(self.error_count))
+                    elif msg_type == "ui_reset":
+                        self.launch_btn.configure(state="normal", text="START ORGANIZATION")
+                        self.update_stats()
+                except (queue.Empty, IndexError, ValueError):
                     break
-                    
-        except Exception as e:
-            print(f"Error processing messages: {e}")
-        
-        # Schedule next check
-        self.root.after(100, self.process_messages)
-
-def main():
-    """Main function to run the GUI"""
-    root = tk.Tk()
-    app = SmartFileOrganizerGUI(root)
-    root.mainloop()
+        except Exception:
+            pass
+        self.after(100, self.process_messages)
 
 if __name__ == "__main__":
-    main()
+    app = SmartFileOrganizerGUI()
+    app.mainloop()
